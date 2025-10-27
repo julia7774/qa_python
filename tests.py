@@ -1,14 +1,6 @@
+import random
 import pytest
 from main import BooksCollector
-
-@pytest.fixture
-def collector():
-    collector = BooksCollector()
-    for genre in collector.genre:
-        name = f"Книга - {genre}"
-        collector.add_new_book(name)
-        collector.set_book_genre(name, genre)
-    return collector
 
 # класс TestBooksCollector объединяет набор тестов, которыми мы покрываем наше приложение BooksCollector
 # обязательно указывать префикс Test
@@ -60,62 +52,57 @@ class TestBooksCollector:
 
         assert len(collector.get_books_genre()) == 0
 
-    def test_set_book_genre(self):
-        collector = BooksCollector()
+    def test_set_book_genre(self, collector_with_books):
+        for book in collector_with_books.books_genre.keys():
+            assert collector_with_books.get_book_genre(book) == ''
+            genre = random.choice(collector_with_books.genre)
 
-        name = 'Книга'
-        collector.add_new_book(name)
-        assert collector.get_book_genre(name) == ''
-        genre = collector.genre[0]
+            collector_with_books.set_book_genre(book, genre)
+            assert collector_with_books.get_book_genre(book) == genre
 
-        collector.set_book_genre(name, genre)
-        assert collector.get_book_genre(name) == genre
-
-    def test_set_book_genre_invalid_book(self):
-        collector = BooksCollector()
-
-        name = 'Книга'
-        genre = collector.genre[0]
-
-        collector.set_book_genre(name, genre)
-        assert not collector.get_book_genre(name)
-
-    def test_set_book_genre_invalid_genre(self):
-        collector = BooksCollector()
-
-        name = 'Книга'
-        collector.add_new_book(name)
+    def test_set_book_genre_invalid_genre(self, collector_with_books):
         genre = 'Жанр'
+        for book in collector_with_books.books_genre.keys():
+            assert collector_with_books.get_book_genre(book) == ''
 
-        collector.set_book_genre(name, genre)
-        assert not collector.get_book_genre(name)
+            collector_with_books.set_book_genre(book, genre)
+            assert collector_with_books.get_book_genre(book) == ''
 
-    def test_get_books_with_specific_genre(self, collector):
-        for genre in collector.genre:
-            books = collector.get_books_with_specific_genre(genre)
-            assert len(books) == 1
-            assert books[0] == f"Книга - {genre}"
+    def test_get_book_genre(self, collector_with_genres):
+        for book, genre in collector_with_genres.books_genre.items():
+            assert collector_with_genres.get_book_genre(book) == genre
 
-    def test_get_books_genre(self):
+    def test_get_book_genre_invalid_book(self):
         collector = BooksCollector()
-        name = 'Книга'
-        collector.add_new_book(name)
-        genre = collector.genre[0]
+        assert not collector.get_book_genre('Книга')
 
-        collector.set_book_genre(name, genre)
-        books = collector.get_books_genre()
-        assert len(books.keys()) == 1
-        assert books.get(name) == genre
+    def test_get_books_with_specific_genre(self, collector_with_genres):
+        for genre in collector_with_genres.genre:
+            books = collector_with_genres.get_books_with_specific_genre(genre)
+
+            assert all(collector_with_genres.books_genre[book] == genre for book in books)
+            books_with_genre = 0
+            for value in collector_with_genres.books_genre.values():
+                if value == genre:
+                    books_with_genre += 1
+
+            assert len(books) == books_with_genre
+
+    def test_get_books_genre(self, collector_with_genres):
+        result = collector_with_genres.get_books_genre()
+
+        assert result == collector_with_genres.books_genre
+        assert len(result) == len(collector_with_genres.books_genre)
 
     def test_get_books_genre_empty(self):
         collector = BooksCollector()
         assert not collector.get_books_genre()
 
-    def test_get_books_for_children(self, collector):
-        books = collector.get_books_for_children()
+    def test_get_books_for_children(self, collector_with_genres):
+        books = collector_with_genres.get_books_for_children()
 
-        for name, genre in collector.books_genre.items():
-            if genre in collector.genre_age_rating:
+        for name, genre in collector_with_genres.books_genre.items():
+            if genre in collector_with_genres.genre_age_rating:
                 assert name not in books
             else:
                 assert name in books
@@ -124,16 +111,23 @@ class TestBooksCollector:
         collector = BooksCollector()
         assert not collector.get_books_for_children()
 
-    def test_add_book_in_favorites(self, collector):
-        assert not collector.get_list_of_favorites_books()
+    def test_add_book_in_favorites(self, collector_with_genres):
+        assert not collector_with_genres.get_list_of_favorites_books()
 
-        for name in collector.books_genre.keys():
-            collector.add_book_in_favorites(name)
-            assert name in collector.get_list_of_favorites_books()
+        for name in collector_with_genres.books_genre.keys():
+            collector_with_genres.add_book_in_favorites(name)
+            assert name in collector_with_genres.favorites
 
-            collector.delete_book_from_favorites(name)
-            assert name not in collector.get_list_of_favorites_books()
+    def test_delete_book_from_favorites(self, collector_with_favorites):
+        for name in collector_with_favorites.books_genre.keys():
+            collector_with_favorites.delete_book_from_favorites(name)
+            assert name not in collector_with_favorites.favorites
 
-        assert not collector.get_list_of_favorites_books()
-        collector.add_book_in_favorites("yandex")
-        assert not collector.get_list_of_favorites_books()
+    def test_get_list_of_favorites_books(self, collector_with_favorites):
+        favorites = collector_with_favorites.get_list_of_favorites_books()
+        assert len(favorites) == len(collector_with_favorites.favorites)
+
+    def test_get_list_of_favorites_books_empty(self, collector_with_genres):
+        favorites = collector_with_genres.get_list_of_favorites_books()
+        assert len(favorites) == len(collector_with_genres.favorites)
+        assert len(favorites) == 0
