@@ -26,16 +26,16 @@ class TestBooksCollector:
     # чтобы тесты были независимыми в каждом из них создавай отдельный экземпляр класса BooksCollector()
 
     @pytest.mark.parametrize(
-        "name, result",
+        "name, expected",
         [
             ['Книга', 1],
             ['Книга' * 40, 0],
         ]
     )
-    def test_add_new_book(self, name, result):
+    def test_add_new_book(self, name, expected):
         collector = BooksCollector()
         collector.add_new_book(name)
-        assert len(collector.get_books_genre()) == result
+        assert len(collector.get_books_genre()) == expected
 
     def test_add_new_book_twice(self):
         collector = BooksCollector()
@@ -52,82 +52,119 @@ class TestBooksCollector:
 
         assert len(collector.get_books_genre()) == 0
 
-    def test_set_book_genre(self, collector_with_books):
-        for book in collector_with_books.books_genre.keys():
-            assert collector_with_books.get_book_genre(book) == ''
-            genre = random.choice(collector_with_books.genre)
+    @pytest.mark.parametrize(
+        "book, genre",
+        [
+            ['Книга', 'Фантастика'],
+            ['Книга', 'Детективы'],
+        ]
+    )
+    def test_set_book_genre(self, collector, book, genre):
+        collector.add_new_book(book)
+        assert collector.books_genre[book] == ''
+        collector.set_book_genre(book, genre)
+        assert collector.books_genre[book] == genre
 
-            collector_with_books.set_book_genre(book, genre)
-            assert collector_with_books.get_book_genre(book) == genre
-
-    def test_set_book_genre_invalid_genre(self, collector_with_books):
+    def test_set_book_genre_invalid_genre(self, collector):
+        book = 'Книга'
+        collector.add_new_book(book)
         genre = 'Жанр'
-        for book in collector_with_books.books_genre.keys():
-            assert collector_with_books.get_book_genre(book) == ''
+        assert collector.books_genre[book] == ''
+        collector.set_book_genre(book, genre)
+        assert collector.books_genre[book] == ''
 
-            collector_with_books.set_book_genre(book, genre)
-            assert collector_with_books.get_book_genre(book) == ''
+    @pytest.mark.parametrize(
+        "book, genre",
+        [
+            ['Книга', 'Фантастика'],
+            ['Книга', 'Детективы'],
+        ]
+    )
+    def test_get_book_genre(self, collector, book, genre):
+        collector.books_genre = {book: genre}
+        assert collector.get_book_genre(book) == genre
 
-    def test_get_book_genre(self, collector_with_genres):
-        for book, genre in collector_with_genres.books_genre.items():
-            assert collector_with_genres.get_book_genre(book) == genre
-
-    def test_get_book_genre_invalid_book(self):
-        collector = BooksCollector()
+    def test_get_book_genre_invalid_book(self, collector):
         assert not collector.get_book_genre('Книга')
 
-    def test_get_books_with_specific_genre(self, collector_with_genres):
-        for genre in collector_with_genres.genre:
-            books = collector_with_genres.get_books_with_specific_genre(genre)
+    def test_get_books_with_specific_genre(self, collector):
+        genre_count = {}
+        for i in range(8):
+            book = f'Книга {i}'
+            collector.add_new_book(book)
+            genre = random.choice(collector.genre)
+            collector.set_book_genre(book, genre)
+            if genre in genre_count:
+                genre_count[genre] += 1
+            else:
+                genre_count[genre] = 1
 
-            assert all(collector_with_genres.books_genre[book] == genre for book in books)
+        for genre in collector.genre:
+            books = collector.get_books_with_specific_genre(genre)
+
+            assert all(collector.books_genre[book] == genre for book in books)
             books_with_genre = 0
-            for value in collector_with_genres.books_genre.values():
-                if value == genre:
-                    books_with_genre += 1
+            assert len(books) == genre_count.get(genre, 0)
 
-            assert len(books) == books_with_genre
+    def test_get_books_genre(self, collector):
+        for i in range(8):
+            book = f'Книга {i}'
+            collector.add_new_book(book)
 
-    def test_get_books_genre(self, collector_with_genres):
-        result = collector_with_genres.get_books_genre()
+        result = collector.get_books_genre()
 
-        assert result == collector_with_genres.books_genre
-        assert len(result) == len(collector_with_genres.books_genre)
+        assert result == collector.books_genre
+        assert len(result) == len(collector.books_genre)
 
     def test_get_books_genre_empty(self):
         collector = BooksCollector()
         assert not collector.get_books_genre()
 
-    def test_get_books_for_children(self, collector_with_genres):
-        books = collector_with_genres.get_books_for_children()
+    @pytest.mark.parametrize(
+        "book, genre, expected",
+        [
+            ['Книга', 'Ужасы', []],
+            ['Книга', 'Мультфильмы', ['Книга']],
+        ]
+    )
+    def test_get_books_for_children(self, collector, book, genre, expected):
+        collector.add_new_book(book)
+        collector.set_book_genre(book, genre)
+        books = collector.get_books_for_children()
+        assert books == expected
 
-        for name, genre in collector_with_genres.books_genre.items():
-            if genre in collector_with_genres.genre_age_rating:
-                assert name not in books
-            else:
-                assert name in books
-
-    def test_get_books_for_children_empty(self):
-        collector = BooksCollector()
+    def test_get_books_for_children_empty(self, collector):
         assert not collector.get_books_for_children()
 
-    def test_add_book_in_favorites(self, collector_with_genres):
-        assert not collector_with_genres.get_list_of_favorites_books()
 
-        for name in collector_with_genres.books_genre.keys():
-            collector_with_genres.add_book_in_favorites(name)
-            assert name in collector_with_genres.favorites
+    def test_add_book_in_favorites(self, collector):
+        book = 'Книга'
+        collector.add_new_book(book)
+        assert len(collector.favorites) == 0
+        collector.add_book_in_favorites(book)
+        assert book in collector.favorites
 
-    def test_delete_book_from_favorites(self, collector_with_favorites):
-        for name in collector_with_favorites.books_genre.keys():
-            collector_with_favorites.delete_book_from_favorites(name)
-            assert name not in collector_with_favorites.favorites
+    def test_delete_book_from_favorites(self, collector):
+        book = 'Книга'
+        collector.add_new_book(book)
+        collector.favorites = [book]
+        assert book in collector.favorites
+        collector.delete_book_from_favorites(book)
+        assert book not in collector.favorites
 
-    def test_get_list_of_favorites_books(self, collector_with_favorites):
-        favorites = collector_with_favorites.get_list_of_favorites_books()
-        assert len(favorites) == len(collector_with_favorites.favorites)
 
-    def test_get_list_of_favorites_books_empty(self, collector_with_genres):
-        favorites = collector_with_genres.get_list_of_favorites_books()
-        assert len(favorites) == len(collector_with_genres.favorites)
-        assert len(favorites) == 0
+    @pytest.mark.parametrize(
+        "book, favorites, expected",
+        [
+            ['Книга', ['Книга'], ['Книга']],
+            ['Книга', [], []],
+        ]
+    )
+    def test_get_list_of_favorites_books(self, collector, book, favorites, expected):
+        collector.add_new_book(book)
+        collector.favorites = favorites
+
+        assert collector.get_list_of_favorites_books() == expected
+
+    def test_get_list_of_favorites_books_empty(self, collector):
+        assert len(collector.get_list_of_favorites_books()) == 0
